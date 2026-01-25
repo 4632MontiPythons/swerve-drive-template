@@ -234,9 +234,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     @Override
     public void periodic() {
-        // Update the dashboard field with the pose from the CTRE estimator
         updateVision();
-        m_field.setRobotPose(getEstimatedPose());
+        m_field.setRobotPose(getEstimatedPose()); // Update the dashboard field with the pose from the CTRE estimator
         /*
          * Periodically try to apply the operator perspective.
          * If we haven't applied the operator perspective before, then we should apply
@@ -327,7 +326,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             Pose2d visionRobotPoseMeters,
             double timestampSeconds,
             Matrix<N3, N1> visionMeasurementStdDevs) {
-        super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds),
+        super.addVisionMeasurement(visionRobotPoseMeters, timestampSeconds,
                 visionMeasurementStdDevs);
     }
 }
