@@ -280,11 +280,11 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
 
         if (mt2Result != null
-                && mt2Result.tagCount >= Constants.Vision.minTags
-                && Math.abs(yawRate) < Constants.Vision.maxYawRate_DegPerSec
-                && mt2Result.avgTagDist < Constants.Vision.maxTagDistance_Meters) {
-            double xyStdDev = Math.max(Constants.Vision.minStdDev_Meters,
-                    Constants.Vision.stdDevPerMeter * mt2Result.avgTagDist);
+                && mt2Result.tagCount >= Vision.minTags
+                && Math.abs(yawRate) < Vision.maxYawRate_DegPerSec
+                && mt2Result.avgTagDist < Vision.maxTagDistance_Meters) {
+            double xyStdDev = Math.max(Vision.minStdDev_Meters,
+                    Vision.stdDevPerMeter * mt2Result.avgTagDist);
             var visionTrustMatrix = VecBuilder.fill(xyStdDev, xyStdDev, 999999); //don't trust angle because LL initially got that from the pigeon, and it would double-count
             addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, visionTrustMatrix); //push vision measurement to pose estimator
         }
