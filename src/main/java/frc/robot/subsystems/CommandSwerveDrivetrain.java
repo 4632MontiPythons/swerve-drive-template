@@ -270,11 +270,11 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     private void updateVision() {
         //First we are sending our robot's orientation(from pigeon) to the limelight so that it can effectively calculate position
-        var pigeonState = getPigeon2();
-        double yaw = pigeonState.getYaw().getValueAsDouble();
-        double pitch = pigeonState.getPitch().getValueAsDouble();
-        double roll = pigeonState.getRoll().getValueAsDouble();
-        double yawRate = pigeonState.getAngularVelocityZWorld().getValueAsDouble();
+        var pigeon = getPigeon2();
+        double yaw = pigeon.getYaw().getValueAsDouble();
+        double yawRate = pigeon.getAngularVelocityZWorld().getValueAsDouble();
+        double pitch = pigeon.getPitch().getValueAsDouble();
+        double roll = pigeon.getRoll().getValueAsDouble();
         LimelightHelpers.SetRobotOrientation("limelight", yaw, yawRate, pitch, 0, roll, 0);
 
         var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
@@ -285,8 +285,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 && mt2Result.avgTagDist < Vision.maxTagDistance_Meters) {
             double xyStdDev = Math.max(Vision.minStdDev_Meters,
                     Vision.stdDevPerMeter * mt2Result.avgTagDist);
-            var visionTrustMatrix = VecBuilder.fill(xyStdDev, xyStdDev, 999999); //don't trust angle because LL initially got that from the pigeon, and it would double-count
-            addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, visionTrustMatrix); //push vision measurement to pose estimator
+            var visionTrustMatrix = VecBuilder.fill(xyStdDev, xyStdDev, 999999); //don't trust angle because LL initially got that from the pigeon
+            addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, visionTrustMatrix); //send vision measurement to pose estimator
         }
     }
 

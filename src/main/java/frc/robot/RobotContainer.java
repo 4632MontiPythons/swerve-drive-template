@@ -10,6 +10,7 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -27,6 +28,9 @@ import frc.robot.Constants.Drive;
 public class RobotContainer {
         private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
         private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
+        //initilaize slew rate limiters
+        private final SlewRateLimiter m_xspeedLimiter = new SlewRateLimiter(OI.slewRate);
+        private final SlewRateLimiter m_yspeedLimiter = new SlewRateLimiter(OI.slewRate);
 
         /* Setting up bindings for necessary control of the swerve drive platform */
         private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
@@ -56,12 +60,14 @@ public class RobotContainer {
         private void configureBindings() {
                 // Note that X is defined as forward according to WPILib convention,
                 // and Y is defined as to the left according to WPILib convention.
+                // Drivetrain default command
                 drivetrain.setDefaultCommand(
-                                // Drivetrain will execute this command periodically
-                                drivetrain.applyRequest(() -> drive.withVelocityX(-xboxController.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
-                                                .withVelocityY(-xboxController.getLeftX() * MaxSpeed) // Drive left with negative X (left)
-                                                .withRotationalRate(-xboxController.getRightX() * MaxAngularRate) // Drive counterclockwise with negative X (left)
-                                ));
+                                drivetrain.applyRequest(() -> drive
+                                                .withVelocityX(m_xspeedLimiter.calculate(-xboxController.getLeftY())
+                                                                * MaxSpeed)
+                                                .withVelocityY(m_yspeedLimiter.calculate(-xboxController.getLeftX())
+                                                                * MaxSpeed)
+                                                .withRotationalRate(-xboxController.getRightX() * MaxAngularRate)));
 
                 // Idle while the robot is disabled. This ensures the configured
                 // neutral mode is applied to the drive motors while disabled.
