@@ -258,22 +258,24 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         }
 
         // module encoder values for debugging
-        SmartDashboard.putNumber("FL Steer Angle", getModule(0).getCurrentState().angle.getRotations());
-        SmartDashboard.putNumber("FR Steer Angle", getModule(1).getCurrentState().angle.getRotations());
-        SmartDashboard.putNumber("BL Steer Angle", getModule(2).getCurrentState().angle.getRotations());
-        SmartDashboard.putNumber("BR Steer Angle", getModule(3).getCurrentState().angle.getRotations());
-        SmartDashboard.putNumber("Yaw (deg)", getPigeon2().getYaw().getValue().in(Degrees));
-        SmartDashboard.putNumber("Estimated X (m)", getEstimatedPose().getX());
-        SmartDashboard.putNumber("Estimated Y (m)", getEstimatedPose().getY());
-        SmartDashboard.putNumber("Estimated Rotation (deg)", getEstimatedPose().getRotation().getDegrees());
+        //SmartDashboard.putNumber("FL Steer Angle", getModule(0).getCurrentState().angle.getRotations());
+        //SmartDashboard.putNumber("FR Steer Angle", getModule(1).getCurrentState().angle.getRotations());
+        //SmartDashboard.putNumber("BL Steer Angle", getModule(2).getCurrentState().angle.getRotations());
+        //SmartDashboard.putNumber("BR Steer Angle", getModule(3).getCurrentState().angle.getRotations());
+        //SmartDashboard.putNumber("Yaw (deg)", getPigeon2().getYaw().getValue().in(Degrees));
+        //SmartDashboard.putNumber("Estimated X (m)", getEstimatedPose().getX());
+        //SmartDashboard.putNumber("Estimated Y (m)", getEstimatedPose().getY());
+        //SmartDashboard.putNumber("Estimated Rotation (deg)", getEstimatedPose().getRotation().getDegrees());
     }
 
     private void updateVision() {
         //First we are sending our robot's orientation(from pigeon) to the limelight so that it can effectively calculate position
-        double yawRate = getPigeon2().getAngularVelocityZWorld().getValueAsDouble();
-        LimelightHelpers.SetRobotOrientation("limelight",
-                getPigeon2().getYaw().getValueAsDouble(),
-                yawRate, 0, 0, 0, 0);
+        var pigeonState = getPigeon2();
+        double yaw = pigeonState.getYaw().getValueAsDouble();
+        double pitch = pigeonState.getPitch().getValueAsDouble();
+        double roll = pigeonState.getRoll().getValueAsDouble();
+        double yawRate = pigeonState.getAngularVelocityZWorld().getValueAsDouble();
+        LimelightHelpers.SetRobotOrientation("limelight", yaw, yawRate, pitch, 0, roll, 0);
 
         var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
 
