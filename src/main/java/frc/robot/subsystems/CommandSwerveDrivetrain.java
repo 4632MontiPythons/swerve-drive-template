@@ -19,8 +19,6 @@ import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.Notifier;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -34,11 +32,6 @@ import frc.robot.Constants.Drive;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.RobotConfig;
-// import com.pathplanner.lib.controllers.PPHolonomicDriveController;
-// import com.pathplanner.lib.config.PIDConstants;
-// import com.pathplanner.lib.path.PathPlannerPath;
-// import com.pathplanner.lib.path.PathConstraints;
-// import edu.wpi.first.math.kinematics.ChassisSpeeds;
 
 /**
  * Class that extends the Phoenix 6 SwerveDrivetrain class and implements
@@ -46,9 +39,6 @@ import com.pathplanner.lib.config.RobotConfig;
  */
 public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Subsystem {
     private final Field2d m_field = new Field2d(); // dashboard pose visualization
-    private static final double kSimLoopPeriod = 0.005; // 5 ms
-    private Notifier m_simNotifier = null;
-    private double m_lastSimTime;
     private RobotConfig ppRobotConfig;
 
 
@@ -152,8 +142,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, odometryUpdateFrequency, odometryStdDevs, visionStdDevs, modules);
         SmartDashboard.putData("Field", m_field);
-        if (Utils.isSimulation())
-            startSimThread();
+        com.pathplanner.lib.util.PathPlannerLogging.setLogActivePathCallback(
+            (poses) -> m_field.getObject("path").setPoses(poses)
+        );
+        com.pathplanner.lib.util.PathPlannerLogging.setLogTargetPoseCallback(
+            (pose) -> m_field.getObject("targetPose").setPose(pose)
+        );
 
         try {
             ppRobotConfig = RobotConfig.fromGUISettings();
@@ -161,9 +155,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             DriverStation.reportError("PathPlanner RobotConfig failed to load", e.getStackTrace());
         }
 
-        AutoBuilder.configure(
+        AutoBuilder.configure( //something to note is that this is just supplying pathplanner with the required functions, not running them
             this::getEstimatedPose,        //pose supplier
-            this::resetPose,               //reset pose
+            this::resetPose,               //reset pose method
             () -> this.getState().Speeds,  //robot-relative chassis speeds
             (speeds, ff) -> {
                 setControl(
@@ -174,7 +168,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             },
             Drive.ppController,
             ppRobotConfig,
-            () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
+            () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red, //as noted above, this will run when auto starts, so we don't have to be worried about being connected to FMS when booting bot
             this
         );
     }
@@ -250,15 +244,22 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         //SmartDashboard.putNumber("Estimated Y (m)", getEstimatedPose().getY());
         //SmartDashboard.putNumber("Estimated Rotation (deg)", getEstimatedPose().getRotation().getDegrees());
     }
+    public void clearFieldPath() {
+        m_field.getObject("path").setPoses(); 
+        m_field.getObject("targetPose").setPoses();
+    }
 
     private void updateVision() {
         //First we are sending our robot's orientation(from pigeon) to the limelight so that it can effectively calculate position
         var pigeon = getPigeon2();
-        double yaw = pigeon.getYaw().getValueAsDouble();
         double yawRate = pigeon.getAngularVelocityZWorld().getValueAsDouble();
-        double pitch = pigeon.getPitch().getValueAsDouble();
-        double roll = pigeon.getRoll().getValueAsDouble();
-        LimelightHelpers.SetRobotOrientation("limelight", yaw, yawRate, pitch, 0, roll, 0);
+        LimelightHelpers.SetRobotOrientation("limelight",
+         pigeon.getYaw().getValueAsDouble(), 
+         yawRate, 
+         pigeon.getPitch().getValueAsDouble(), 
+         0,
+         pigeon.getRoll().getValueAsDouble(), 
+         0);
 
         var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
 
@@ -266,6 +267,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 && mt2Result.tagCount >= Vision.minTags
                 && Math.abs(yawRate) < Vision.maxYawRate_DegPerSec
                 && mt2Result.avgTagDist < Vision.maxTagDistance_Meters) {
+            m_field.getObject("VisionEstimate").setPose(mt2Result.pose); //visualize our last valid LL pose estimate on dashboard
             double xyStdDev = Math.max(Vision.minStdDev_Meters,
                     Vision.stdDevPerMeter * mt2Result.avgTagDist);
             var visionTrustMatrix = VecBuilder.fill(xyStdDev, xyStdDev, 999999); //don't trust angle because LL initially got that from the pigeon
@@ -273,20 +275,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         }
     }
 
-    private void startSimThread() {
-        m_lastSimTime = Utils.getCurrentTimeSeconds();
-
-        /* Run simulation at a faster rate so PID gains behave more reasonably */
-        m_simNotifier = new Notifier(() -> {
-            final double currentTime = Utils.getCurrentTimeSeconds();
-            double deltaTime = currentTime - m_lastSimTime;
-            m_lastSimTime = currentTime;
-
-            /* use the measured time delta, get battery voltage from WPILib */
-            updateSimState(deltaTime, RobotController.getBatteryVoltage());
-        });
-        m_simNotifier.startPeriodic(kSimLoopPeriod);
-    }
 
     /**
      * Adds a vision measurement to the Kalman Filter. This will correct the

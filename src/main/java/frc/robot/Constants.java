@@ -3,6 +3,8 @@ package frc.robot;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 
+import edu.wpi.first.math.geometry.Translation2d;
+
 public final class Constants {
     //Prevent instantiation
     private Constants() {
@@ -43,5 +45,9 @@ public final class Constants {
         public static final int driverControllerPort = 0;
         public static final double slewRate = 3.0; //limits change to 100k% per second, meaning would take 1/k seconds to go from 0 to full throttle
     }
+    // public static final class Shooter {
+    //     public static final Translation2d redGoalXY = new Translation2d(11.915394, 4.034536); //meters
+    //     public static final Translation2d blueGoalXY = new Translation2d(4.625594, 4.034536); //meters
 
+    // }  
 }
