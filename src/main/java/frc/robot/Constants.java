@@ -9,6 +9,12 @@ public final class Constants {
         //Most Drive constants are located in /generated/TunerConstants.java
         public static final double odometryXYStdDevs = 0.03;
         public static final double odometryThetaStdDev = 0.015;
+
+        //sysID
+        public static final double translationRampRate = 0.75; //for quasistatic (volts per second of routine)
+        public static final double translationStep = 4; //for dynamic (volts of routine)
+        public static final double timeout = 7;
+
     }
 
     public static final class Vision {

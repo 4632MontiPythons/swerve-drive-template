@@ -29,6 +29,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 import frc.robot.util.LimelightHelpers;
 import frc.robot.Constants.Vision;
+import frc.robot.Constants.Drive;
 
 /**
  * Class that extends the Phoenix 6 SwerveDrivetrain class and implements
@@ -52,15 +53,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
     private final SwerveRequest.SysIdSwerveRotation m_rotationCharacterization = new SwerveRequest.SysIdSwerveRotation();
 
-    /*
-     * SysId routine for characterizing translation. This is used to find PID gains
-     * for the drive motors.
-     */
+    //SysId routine for characterizing translation. This is used to find PID gains for the drive motors.
     private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
             new SysIdRoutine.Config(
-                    null, // Use default ramp rate (1 V/s)
-                    Volts.of(4), // Reduce dynamic step voltage to 4 V to prevent brownout
-                    null, // Use default timeout (10 s)
+                    Volts.per(Second).of(Drive.translationRampRate),
+                    Volts.of(Drive.translationStep),
+                    Seconds.of(Drive.timeout), // Use default timeout (10 s)
                     // Log state with SignalLogger class
                     state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())),
             new SysIdRoutine.Mechanism(
@@ -68,13 +66,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     null,
                     this));
 
-    /*
-     * SysId routine for characterizing steer. This is used to find PID gains for
-     * the steer motors.
-     */
+    //SysId routine for characterizing steer. This is used to find PID gains for the steer motors.
     private final SysIdRoutine m_sysIdRoutineSteer = new SysIdRoutine(
             new SysIdRoutine.Config(
-                    null, // Use default ramp rate (1 V/s)
+                    null, //Use default ramp rate (1 V/s)
                     Volts.of(7), // Use dynamic voltage of 7 V
                     null, // Use default timeout (10 s)
                     // Log state with SignalLogger class
@@ -240,12 +235,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
          * Periodically try to apply the operator perspective.
          * If we haven't applied the operator perspective before, then we should apply
          * it regardless of DS state.
-         * This allows us to correct the perspective in case the robot code restarts
-         * mid-match.
-         * Otherwise, only check and apply the operator perspective if the DS is
-         * disabled.
-         * This ensures driving behavior doesn't change until an explicit disable event
-         * occurs during testing.
+         * This allows us to correct the perspective in case the robot code restarts mid-match.
+         * Otherwise, only check and apply the operator perspective if the DS is disabled.
+         * This ensures driving behavior doesn't change until an explicit disable event occurs during testing.
          */
         if (!m_hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
             DriverStation.getAlliance().ifPresent(allianceColor -> {
