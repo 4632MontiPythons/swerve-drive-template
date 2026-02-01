@@ -1,5 +1,8 @@
 package frc.robot;
 
+import com.pathplanner.lib.config.PIDConstants;
+import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+
 public final class Constants {
     //Prevent instantiation
     private Constants() {
@@ -9,6 +12,13 @@ public final class Constants {
         //Most Drive constants are located in /generated/TunerConstants.java
         public static final double odometryXYStdDevs = 0.03;
         public static final double odometryThetaStdDev = 0.015;
+        
+        //Auto config
+        public final static PPHolonomicDriveController ppController =
+            new PPHolonomicDriveController(
+                new PIDConstants(5.0, 0.0, 0.0), //translation
+                new PIDConstants(4.0, 0.0, 0.0)  //rotation
+            );
 
         //sysID
         public static final double translationRampRate = 0.75; //for quasistatic (volts per second of routine)

@@ -13,8 +13,6 @@ import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
@@ -25,7 +23,14 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.Constants.OI;
 import frc.robot.Constants.Drive;
 
-public class RobotContainer {
+import com.pathplanner.lib.auto.AutoBuilder;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import com.pathplanner.lib.auto.NamedCommands;
+
+public class RobotContainer {     
         private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
         private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
         //initilaize slew rate limiters
@@ -39,7 +44,7 @@ public class RobotContainer {
                         .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
         private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
         private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
-
+        private final SendableChooser<Command> autoChooser;
         private final Telemetry logger = new Telemetry(MaxSpeed);
 
         private final CommandXboxController xboxController = new CommandXboxController(OI.driverControllerPort);
@@ -55,6 +60,8 @@ public class RobotContainer {
 
         public RobotContainer() {
                 configureBindings();
+                autoChooser = AutoBuilder.buildAutoChooser();
+                SmartDashboard.putData("Auto Mode", autoChooser);
         }
 
         private void configureBindings() {
@@ -102,6 +109,6 @@ public class RobotContainer {
         }
 
         public Command getAutonomousCommand() {
-                return Commands.print("No autonomous command configured");
-        }
+                return autoChooser.getSelected();
+        }       
 }

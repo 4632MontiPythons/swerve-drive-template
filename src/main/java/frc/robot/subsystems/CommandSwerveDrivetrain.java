@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
+import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
@@ -31,6 +32,14 @@ import frc.robot.util.LimelightHelpers;
 import frc.robot.Constants.Vision;
 import frc.robot.Constants.Drive;
 
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.RobotConfig;
+// import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+// import com.pathplanner.lib.config.PIDConstants;
+// import com.pathplanner.lib.path.PathPlannerPath;
+// import com.pathplanner.lib.path.PathConstraints;
+// import edu.wpi.first.math.kinematics.ChassisSpeeds;
+
 /**
  * Class that extends the Phoenix 6 SwerveDrivetrain class and implements
  * Subsystem so it can easily be used in command-based projects.
@@ -40,6 +49,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private static final double kSimLoopPeriod = 0.005; // 5 ms
     private Notifier m_simNotifier = null;
     private double m_lastSimTime;
+    private RobotConfig ppRobotConfig;
+
+
 
     /* Blue alliance sees forward as 0 degrees (toward red alliance wall) */
     private static final Rotation2d kBlueAlliancePerspectiveRotation = Rotation2d.kZero;
@@ -81,8 +93,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     /*
      * SysId routine for characterizing rotation.
-     * This is used to find PID gains for the FieldCentricFacingAngle
-     * HeadingController.
+     * This is used to find PID gains for the FieldCentricFacingAngle HeadingController.
      * See the documentation of SwerveRequest.SysIdSwerveRotation for info on
      * importing the log to SysId.
      */
@@ -186,6 +197,30 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         SmartDashboard.putData("Field", m_field);
         if (Utils.isSimulation())
             startSimThread();
+
+        try {
+            ppRobotConfig = RobotConfig.fromGUISettings();
+        } catch (Exception e) {
+            DriverStation.reportError("PathPlanner RobotConfig failed to load", e.getStackTrace());
+        }
+
+        AutoBuilder.configure(
+            this::getEstimatedPose,        //pose supplier
+            this::resetPose,               //reset pose
+            () -> this.getState().Speeds,  //robot-relative chassis speeds
+            (speeds, ff) -> {
+                setControl(
+                    new SwerveRequest.ApplyRobotSpeeds()
+                        .withSpeeds(speeds)
+                        .withDriveRequestType(DriveRequestType.Velocity)
+                );
+            },
+            Drive.ppController,
+            ppRobotConfig,
+            () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
+            this
+        );
+
     }
 
     /**
