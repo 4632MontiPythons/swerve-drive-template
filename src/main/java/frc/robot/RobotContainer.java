@@ -61,7 +61,7 @@ public class RobotContainer {
         public RobotContainer() {
                 configureBindings();
                 autoChooser = AutoBuilder.buildAutoChooser();
-                SmartDashboard.putData("Auto Mode", autoChooser);
+                SmartDashboard.putData("Auto Chooser", autoChooser);
         }
 
         private void configureBindings() {

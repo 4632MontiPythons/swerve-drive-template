@@ -39,7 +39,7 @@ public final class Constants {
     }
 
     public static final class OI {
-        public static final double deadband = 0.10; //percentage of max speed/rotational rate. e.g. 10% deadband should be 0.10
+        public static final double deadband = 0.05; //percentage of max speed/rotational rate. e.g. 10% deadband should be 0.10
         public static final int driverControllerPort = 0;
         public static final double slewRate = 3.0; //limits change to 100k% per second, meaning would take 1/k seconds to go from 0 to full throttle
     }
