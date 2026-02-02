@@ -21,6 +21,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.Constants.OI;
+import frc.robot.commands.WheelRadiusCharacterization;
 import frc.robot.Constants.Drive;
 
 import com.pathplanner.lib.auto.AutoBuilder;
@@ -89,23 +90,34 @@ public class RobotContainer {
                                 .withModuleDirection(new Rotation2d(-xboxController.getLeftY(),
                                                 -xboxController.getLeftX()))));
 
-                // Run SysId routines when holding back/start and X/Y.
-                // Note that each routine should be run exactly once in a single log.
-                xboxController.back().and(xboxController.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-                xboxController.back().and(xboxController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-                xboxController.start().and(xboxController.y())
-                                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-                xboxController.start().and(xboxController.x())
-                                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+
 
                 // reset the field-centric heading on left bumper press(LB)
                 xboxController.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
-                //FOR TESTING PURPOSES ONLY; REMOVE/CHANGE FOR COMP: reset position to in front of the center of the red alliance hub, facing red alliance wall(By Apriltags 9 and 10)
-                xboxController.leftTrigger().onTrue(
-                                new InstantCommand(() -> drivetrain.resetPose(
-                                                new Pose2d((492.88 + 15) * 0.0254, (158.32) * 0.0254, //0.0254 converts from in to m
-                                                                Rotation2d.fromDegrees(0)))));
+
+
+                //the following bindings only do anything if drive.comp is false(not in a competition settnig. that boolean has to be manually set)
+                if(!Drive.comp){
+                        // Run SysId routines when holding back/start and X/Y.
+                        // Note that each routine should be run exactly once in a single log.
+                        xboxController.back().and(xboxController.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
+                        xboxController.back().and(xboxController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
+                        xboxController.start().and(xboxController.y())
+                                        .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+                        xboxController.start().and(xboxController.x())
+                                        .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+
+                        
+                        //For testing purposes only: reset position to in front of the center of the red alliance hub, facing red alliance wall(By Apriltags 9 and 10)
+                        if(!Drive.comp) xboxController.leftTrigger().onTrue(
+                                        new InstantCommand(() -> drivetrain.resetPose(
+                                                        new Pose2d((492.88 + 15) * 0.0254, (158.32) * 0.0254, //0.0254 converts from in to m
+                                                                        Rotation2d.fromDegrees(0)))));      
+                        //run wheel characterization
+                        if(!Drive.comp) xboxController.leftTrigger().and(xboxController.rightTrigger())
+                                        .onTrue(new WheelRadiusCharacterization(drivetrain));
+                }
 
                 drivetrain.registerTelemetry(logger::telemeterize);
         }

@@ -245,7 +245,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         //SmartDashboard.putNumber("Estimated Rotation (deg)", getEstimatedPose().getRotation().getDegrees());
     }
     public void clearFieldPath() {
-        m_field.getObject("path").setPoses(); 
+        m_field.getObject("path").setPoses();
         m_field.getObject("targetPose").setPoses();
     }
 
@@ -264,13 +264,15 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
 
         if (mt2Result != null
-                && mt2Result.tagCount >= Vision.minTags
                 && Math.abs(yawRate) < Vision.maxYawRate_DegPerSec
                 && mt2Result.avgTagDist < Vision.maxTagDistance_Meters) {
-            m_field.getObject("VisionEstimate").setPose(mt2Result.pose); //visualize our last valid LL pose estimate on dashboard
-            double xyStdDev = Math.max(Vision.minStdDev_Meters,
-                    Vision.stdDevPerMeter * mt2Result.avgTagDist);
-            var visionTrustMatrix = VecBuilder.fill(xyStdDev, xyStdDev, 999999); //don't trust angle because LL initially got that from the pigeon
+            if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(mt2Result.pose); //visualize our last valid LL pose estimate on dashboard
+
+            double xyStdDev = (Vision.baseXYStdDev/mt2Result.tagCount)
+                            * (1+(yawRate*Vision.yawRateCoefficent))
+                            + (mt2Result.avgTagDist*Vision.stdDevPerMeter);
+            var visionTrustMatrix = VecBuilder.fill(
+                xyStdDev, xyStdDev, 99999);
             addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, visionTrustMatrix); //send vision measurement to pose estimator
         }
     }
