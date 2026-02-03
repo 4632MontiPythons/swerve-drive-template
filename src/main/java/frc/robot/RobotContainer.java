@@ -10,10 +10,9 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
@@ -22,11 +21,22 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.Constants.OI;
+import frc.robot.commands.WheelRadiusCharacterization;
 import frc.robot.Constants.Drive;
 
-public class RobotContainer {
+import com.pathplanner.lib.auto.AutoBuilder;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import com.pathplanner.lib.auto.NamedCommands;
+
+public class RobotContainer {     
         private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
         private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
+        //initilaize slew rate limiters
+        private final SlewRateLimiter m_xspeedLimiter = new SlewRateLimiter(OI.slewRate);
+        private final SlewRateLimiter m_yspeedLimiter = new SlewRateLimiter(OI.slewRate);
 
         /* Setting up bindings for necessary control of the swerve drive platform */
         private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
@@ -35,7 +45,7 @@ public class RobotContainer {
                         .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
         private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
         private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
-
+        private final SendableChooser<Command> autoChooser;
         private final Telemetry logger = new Telemetry(MaxSpeed);
 
         private final CommandXboxController xboxController = new CommandXboxController(OI.driverControllerPort);
@@ -51,17 +61,21 @@ public class RobotContainer {
 
         public RobotContainer() {
                 configureBindings();
+                autoChooser = AutoBuilder.buildAutoChooser();
+                SmartDashboard.putData("Auto Chooser", autoChooser);
         }
 
         private void configureBindings() {
                 // Note that X is defined as forward according to WPILib convention,
                 // and Y is defined as to the left according to WPILib convention.
+                // Drivetrain default command
                 drivetrain.setDefaultCommand(
-                                // Drivetrain will execute this command periodically
-                                drivetrain.applyRequest(() -> drive.withVelocityX(-xboxController.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
-                                                .withVelocityY(-xboxController.getLeftX() * MaxSpeed) // Drive left with negative X (left)
-                                                .withRotationalRate(-xboxController.getRightX() * MaxAngularRate) // Drive counterclockwise with negative X (left)
-                                ));
+                                drivetrain.applyRequest(() -> drive
+                                                .withVelocityX(m_xspeedLimiter.calculate(-xboxController.getLeftY())
+                                                                * MaxSpeed)
+                                                .withVelocityY(m_yspeedLimiter.calculate(-xboxController.getLeftX())
+                                                                * MaxSpeed)
+                                                .withRotationalRate(-xboxController.getRightX() * MaxAngularRate)));
 
                 // Idle while the robot is disabled. This ensures the configured
                 // neutral mode is applied to the drive motors while disabled.
@@ -69,33 +83,46 @@ public class RobotContainer {
                 RobotModeTriggers.disabled().whileTrue(
                                 drivetrain.applyRequest(() -> idle).ignoringDisable(true));
 
+                RobotModeTriggers.autonomous().onFalse(drivetrain.runOnce(drivetrain::clearFieldPath)); //clear the dashboard visualized paths once auto ends
+
                 xboxController.a().whileTrue(drivetrain.applyRequest(() -> brake));
                 xboxController.b().whileTrue(drivetrain.applyRequest(() -> point
                                 .withModuleDirection(new Rotation2d(-xboxController.getLeftY(),
                                                 -xboxController.getLeftX()))));
 
-                // Run SysId routines when holding back/start and X/Y.
-                // Note that each routine should be run exactly once in a single log.
-                xboxController.back().and(xboxController.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-                xboxController.back().and(xboxController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-                xboxController.start().and(xboxController.y())
-                                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-                xboxController.start().and(xboxController.x())
-                                .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+
 
                 // reset the field-centric heading on left bumper press(LB)
                 xboxController.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
-                //FOR TESTING PURPOSES ONLY; REMOVE/CHANGE FOR COMP: reset position to in front of the center of the red alliance hub, facing red alliance wall(By Apriltags 9 and 10)
-                xboxController.leftTrigger().onTrue(
-                                new InstantCommand(() -> drivetrain.resetPose(
-                                                new Pose2d((492.88 + 15) * 0.0254, (158.32) * 0.0254, //0.0254 converts from in to m
-                                                                Rotation2d.fromDegrees(0)))));
+
+
+                //the following bindings only do anything if drive.comp is false(not in a competition settnig. that boolean has to be manually set)
+                if(!Drive.comp){
+                        // Run SysId routines when holding back/start and X/Y.
+                        // Note that each routine should be run exactly once in a single log.
+                        xboxController.back().and(xboxController.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
+                        xboxController.back().and(xboxController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
+                        xboxController.start().and(xboxController.y())
+                                        .whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+                        xboxController.start().and(xboxController.x())
+                                        .whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+
+                        
+                        //For testing purposes only: reset position to in front of the center of the red alliance hub, facing red alliance wall(By Apriltags 9 and 10)
+                        if(!Drive.comp) xboxController.leftTrigger().onTrue(
+                                        new InstantCommand(() -> drivetrain.resetPose(
+                                                        new Pose2d((492.88 + 15) * 0.0254, (158.32) * 0.0254, //0.0254 converts from in to m
+                                                                        Rotation2d.fromDegrees(0)))));      
+                        //run wheel characterization
+                        if(!Drive.comp) xboxController.leftTrigger().and(xboxController.rightTrigger())
+                                        .onTrue(new WheelRadiusCharacterization(drivetrain));
+                }
 
                 drivetrain.registerTelemetry(logger::telemeterize);
         }
 
         public Command getAutonomousCommand() {
-                return Commands.print("No autonomous command configured");
-        }
+                return autoChooser.getSelected();
+        }       
 }

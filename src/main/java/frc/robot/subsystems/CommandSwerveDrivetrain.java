@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
+import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
@@ -18,8 +19,6 @@ import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.Notifier;
-import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -29,6 +28,10 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 import frc.robot.util.LimelightHelpers;
 import frc.robot.Constants.Vision;
+import frc.robot.Constants.Drive;
+
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.RobotConfig;
 
 /**
  * Class that extends the Phoenix 6 SwerveDrivetrain class and implements
@@ -36,9 +39,9 @@ import frc.robot.Constants.Vision;
  */
 public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Subsystem {
     private final Field2d m_field = new Field2d(); // dashboard pose visualization
-    private static final double kSimLoopPeriod = 0.005; // 5 ms
-    private Notifier m_simNotifier = null;
-    private double m_lastSimTime;
+    private RobotConfig ppRobotConfig;
+
+
 
     /* Blue alliance sees forward as 0 degrees (toward red alliance wall) */
     private static final Rotation2d kBlueAlliancePerspectiveRotation = Rotation2d.kZero;
@@ -52,15 +55,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
     private final SwerveRequest.SysIdSwerveRotation m_rotationCharacterization = new SwerveRequest.SysIdSwerveRotation();
 
-    /*
-     * SysId routine for characterizing translation. This is used to find PID gains
-     * for the drive motors.
-     */
+    //SysId routine for characterizing translation. This is used to find PID gains for the drive motors.
     private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
             new SysIdRoutine.Config(
-                    null, // Use default ramp rate (1 V/s)
-                    Volts.of(4), // Reduce dynamic step voltage to 4 V to prevent brownout
-                    null, // Use default timeout (10 s)
+                    Volts.per(Second).of(Drive.translationRampRate),
+                    Volts.of(Drive.translationStep),
+                    Seconds.of(Drive.timeout), // Use default timeout (10 s)
                     // Log state with SignalLogger class
                     state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())),
             new SysIdRoutine.Mechanism(
@@ -68,13 +68,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     null,
                     this));
 
-    /*
-     * SysId routine for characterizing steer. This is used to find PID gains for
-     * the steer motors.
-     */
+    //SysId routine for characterizing steer. This is used to find PID gains for the steer motors.
     private final SysIdRoutine m_sysIdRoutineSteer = new SysIdRoutine(
             new SysIdRoutine.Config(
-                    null, // Use default ramp rate (1 V/s)
+                    null, //Use default ramp rate (1 V/s)
                     Volts.of(7), // Use dynamic voltage of 7 V
                     null, // Use default timeout (10 s)
                     // Log state with SignalLogger class
@@ -86,8 +83,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     /*
      * SysId routine for characterizing rotation.
-     * This is used to find PID gains for the FieldCentricFacingAngle
-     * HeadingController.
+     * This is used to find PID gains for the FieldCentricFacingAngle HeadingController.
      * See the documentation of SwerveRequest.SysIdSwerveRotation for info on
      * importing the log to SysId.
      */
@@ -113,49 +109,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     /* The SysId routine to test */
     private SysIdRoutine m_sysIdRoutineToApply = m_sysIdRoutineTranslation;
 
-    /**
-     * Constructs a CTRE SwerveDrivetrain using the specified constants.
-     * <p>
-     * This constructs the underlying hardware devices, so users should not
-     * construct
-     * the devices themselves. If they need the devices, they can access them
-     * through
-     * getters in the classes.
-     *
-     * @param drivetrainConstants Drivetrain-wide constants for the swerve drive
-     * @param modules             Constants for each specific module
-     */
-    public CommandSwerveDrivetrain(SwerveDrivetrainConstants drivetrainConstants,
-            SwerveModuleConstants<?, ?, ?>... modules) {
-        super(drivetrainConstants, modules);
-        SmartDashboard.putData("Field", m_field);
-        if (Utils.isSimulation())
-            startSimThread();
-    }
-
-    /**
-     * Constructs a CTRE SwerveDrivetrain using the specified constants.
-     * <p>
-     * This constructs the underlying hardware devices, so users should not
-     * construct
-     * the devices themselves. If they need the devices, they can access them
-     * through
-     * getters in the classes.
-     *
-     * @param drivetrainConstants     Drivetrain-wide constants for the swerve drive
-     * @param odometryUpdateFrequency The frequency to run the odometry loop. If
-     * unspecified or set to 0 Hz, this is 250 Hz on
-     * CAN FD, and 100 Hz on CAN 2.0.
-     * @param modules                 Constants for each specific module
-     */
-    public CommandSwerveDrivetrain(SwerveDrivetrainConstants drivetrainConstants,
-            double odometryUpdateFrequency,
-            SwerveModuleConstants<?, ?, ?>... modules) {
-        super(drivetrainConstants, odometryUpdateFrequency, modules);
-        SmartDashboard.putData("Field", m_field);
-        if (Utils.isSimulation())
-            startSimThread();
-    }
 
     /**
      * Constructs a CTRE SwerveDrivetrain using the specified constants.
@@ -189,8 +142,35 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             SwerveModuleConstants<?, ?, ?>... modules) {
         super(drivetrainConstants, odometryUpdateFrequency, odometryStdDevs, visionStdDevs, modules);
         SmartDashboard.putData("Field", m_field);
-        if (Utils.isSimulation())
-            startSimThread();
+        com.pathplanner.lib.util.PathPlannerLogging.setLogActivePathCallback(
+            (poses) -> m_field.getObject("path").setPoses(poses)
+        );
+        com.pathplanner.lib.util.PathPlannerLogging.setLogTargetPoseCallback(
+            (pose) -> m_field.getObject("targetPose").setPose(pose)
+        );
+
+        try {
+            ppRobotConfig = RobotConfig.fromGUISettings();
+        } catch (Exception e) {
+            DriverStation.reportError("PathPlanner RobotConfig failed to load", e.getStackTrace());
+        }
+
+        AutoBuilder.configure( //something to note is that this is just supplying pathplanner with the required functions, not running them
+            this::getEstimatedPose,        //pose supplier
+            this::resetPose,               //reset pose method
+            () -> this.getState().Speeds,  //robot-relative chassis speeds
+            (speeds, ff) -> {
+                setControl(
+                    new SwerveRequest.ApplyRobotSpeeds()
+                        .withSpeeds(speeds)
+                        .withDriveRequestType(DriveRequestType.Velocity)
+                );
+            },
+            Drive.ppController,
+            ppRobotConfig,
+            () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red, //as noted above, this will run when auto starts, so we don't have to be worried about being connected to FMS when booting bot
+            this
+        );
     }
 
     /**
@@ -240,12 +220,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
          * Periodically try to apply the operator perspective.
          * If we haven't applied the operator perspective before, then we should apply
          * it regardless of DS state.
-         * This allows us to correct the perspective in case the robot code restarts
-         * mid-match.
-         * Otherwise, only check and apply the operator perspective if the DS is
-         * disabled.
-         * This ensures driving behavior doesn't change until an explicit disable event
-         * occurs during testing.
+         * This allows us to correct the perspective in case the robot code restarts mid-match.
+         * Otherwise, only check and apply the operator perspective if the DS is disabled.
+         * This ensures driving behavior doesn't change until an explicit disable event occurs during testing.
          */
         if (!m_hasAppliedOperatorPerspective || DriverStation.isDisabled()) {
             DriverStation.getAlliance().ifPresent(allianceColor -> {
@@ -258,50 +235,48 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         }
 
         // module encoder values for debugging
-        SmartDashboard.putNumber("FL Steer Angle", getModule(0).getCurrentState().angle.getRotations());
-        SmartDashboard.putNumber("FR Steer Angle", getModule(1).getCurrentState().angle.getRotations());
-        SmartDashboard.putNumber("BL Steer Angle", getModule(2).getCurrentState().angle.getRotations());
-        SmartDashboard.putNumber("BR Steer Angle", getModule(3).getCurrentState().angle.getRotations());
-        SmartDashboard.putNumber("Yaw (deg)", getPigeon2().getYaw().getValue().in(Degrees));
-        SmartDashboard.putNumber("Estimated X (m)", getEstimatedPose().getX());
-        SmartDashboard.putNumber("Estimated Y (m)", getEstimatedPose().getY());
-        SmartDashboard.putNumber("Estimated Rotation (deg)", getEstimatedPose().getRotation().getDegrees());
+        //SmartDashboard.putNumber("FL Steer Angle", getModule(0).getCurrentState().angle.getRotations());
+        //SmartDashboard.putNumber("FR Steer Angle", getModule(1).getCurrentState().angle.getRotations());
+        //SmartDashboard.putNumber("BL Steer Angle", getModule(2).getCurrentState().angle.getRotations());
+        //SmartDashboard.putNumber("BR Steer Angle", getModule(3).getCurrentState().angle.getRotations());
+        //SmartDashboard.putNumber("Yaw (deg)", getPigeon2().getYaw().getValue().in(Degrees));
+        //SmartDashboard.putNumber("Estimated X (m)", getEstimatedPose().getX());
+        //SmartDashboard.putNumber("Estimated Y (m)", getEstimatedPose().getY());
+        //SmartDashboard.putNumber("Estimated Rotation (deg)", getEstimatedPose().getRotation().getDegrees());
+    }
+    public void clearFieldPath() {
+        m_field.getObject("path").setPoses();
+        m_field.getObject("targetPose").setPoses();
     }
 
     private void updateVision() {
         //First we are sending our robot's orientation(from pigeon) to the limelight so that it can effectively calculate position
-        double yawRate = getPigeon2().getAngularVelocityZWorld().getValueAsDouble();
+        var pigeon = getPigeon2();
+        double yawRate = pigeon.getAngularVelocityZWorld().getValueAsDouble();
         LimelightHelpers.SetRobotOrientation("limelight",
-                getPigeon2().getYaw().getValueAsDouble(),
-                yawRate, 0, 0, 0, 0);
+         pigeon.getYaw().getValueAsDouble(), 
+         yawRate, 
+         pigeon.getPitch().getValueAsDouble(), 
+         0,
+         pigeon.getRoll().getValueAsDouble(), 
+         0);
 
         var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
 
         if (mt2Result != null
-                && mt2Result.tagCount >= Vision.minTags
                 && Math.abs(yawRate) < Vision.maxYawRate_DegPerSec
                 && mt2Result.avgTagDist < Vision.maxTagDistance_Meters) {
-            double xyStdDev = Math.max(Vision.minStdDev_Meters,
-                    Vision.stdDevPerMeter * mt2Result.avgTagDist);
-            var visionTrustMatrix = VecBuilder.fill(xyStdDev, xyStdDev, 999999); //don't trust angle because LL initially got that from the pigeon, and it would double-count
-            addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, visionTrustMatrix); //push vision measurement to pose estimator
+            if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(mt2Result.pose); //visualize our last valid LL pose estimate on dashboard
+
+            double xyStdDev = (Vision.baseXYStdDev/mt2Result.tagCount)
+                            * (1+(yawRate*Vision.yawRateCoefficent))
+                            + (mt2Result.avgTagDist*Vision.stdDevPerMeter);
+            var visionTrustMatrix = VecBuilder.fill(
+                xyStdDev, xyStdDev, 99999);
+            addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, visionTrustMatrix); //send vision measurement to pose estimator
         }
     }
 
-    private void startSimThread() {
-        m_lastSimTime = Utils.getCurrentTimeSeconds();
-
-        /* Run simulation at a faster rate so PID gains behave more reasonably */
-        m_simNotifier = new Notifier(() -> {
-            final double currentTime = Utils.getCurrentTimeSeconds();
-            double deltaTime = currentTime - m_lastSimTime;
-            m_lastSimTime = currentTime;
-
-            /* use the measured time delta, get battery voltage from WPILib */
-            updateSimState(deltaTime, RobotController.getBatteryVoltage());
-        });
-        m_simNotifier.startPeriodic(kSimLoopPeriod);
-    }
 
     /**
      * Adds a vision measurement to the Kalman Filter. This will correct the
