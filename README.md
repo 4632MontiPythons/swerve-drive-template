@@ -1,1 +1,1 @@
-Just swerve drive chassis code that we will need for every swerve robot. We will build off of this for future robots by cloning the repository.
+Template swerve drive code. Whenever you need to change something that you'll want changed on every swerve bot we make, make the changes here and do a pull request to get it into the wanted repo. And whenever we establish a repo for a year's robot-specific code, use this template.
