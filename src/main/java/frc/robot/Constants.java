@@ -14,10 +14,10 @@ public final class Constants {
     public static final class Drive {
         //Most Drive constants are located in /generated/TunerConstants.java
         public static final double odometryXYStdDevs = 0.03;
-        public static final double odometryThetaStdDev = Units.degreesToRadians(0.75);
+        public static final double odometryYawStdDev = Units.degreesToRadians(0.75);
         public static final double wheelXtocenter = Units.inchesToMeters(11.125);
         public static final double wheelYtocenter = Units.inchesToMeters(11.125);
-        public static final boolean comp = false;
+        public static final boolean comp = false; //CHANGE THIS AT COMP
 
 
         //Auto config
