@@ -55,8 +55,9 @@ public final class Constants {
         //add avg tag distance * stdDevPerMeter
         public static final double maxTagDistance_Meters = 5.0; //ignore visual measurements when average distance to tags greater than this value.
         public static final double maxYawRate_DegPerSec = 450; //ignore visual measurements when yaw rate is greater than this value
-        public static final double yawRateCoefficent = (1/200);
+        public static final double yawRateCoefficent = (1.0/200.0);
         public static final double stdDevPerMeter = 0.02; //Std dev increase per meter
+        public static final double maxPoseJump_Meters = 1.0; //ignore visual measurements when distance from current pose to vision pose is greater than this value
     }
 
     public static final class OI {

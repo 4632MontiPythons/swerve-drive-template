@@ -110,12 +110,12 @@ public class RobotContainer {
 
                         
                         //For testing purposes only: reset position to in front of the center of the red alliance hub, facing red alliance wall(By Apriltags 9 and 10)
-                        if(!Drive.comp) xboxController.leftTrigger().onTrue(
+                        xboxController.leftTrigger().onTrue(
                                         new InstantCommand(() -> drivetrain.resetPose(
                                                         new Pose2d((492.88 + 15) * 0.0254, (158.32) * 0.0254, //0.0254 converts from in to m
                                                                         Rotation2d.fromDegrees(0)))));      
                         //run wheel characterization
-                        if(!Drive.comp) xboxController.leftTrigger().and(xboxController.rightTrigger())
+                        xboxController.leftTrigger().and(xboxController.rightTrigger())
                                         .onTrue(new WheelRadiusCharacterization(drivetrain));
                 }
 

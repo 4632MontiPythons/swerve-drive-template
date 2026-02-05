@@ -253,6 +253,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         m_field.getObject("targetPose").setPoses();
     }
 
+    @SuppressWarnings("unused")
     private void updateVision() {
         //First we are sending our robot's orientation(from pigeon) to the limelight so that it can effectively calculate position
         var pigeon = getPigeon2();
@@ -270,6 +271,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         if (mt2Result != null
                 && Math.abs(yawRate) < Vision.maxYawRate_DegPerSec
                 && mt2Result.avgTagDist < Vision.maxTagDistance_Meters) {
+
+            if(Drive.comp && //only do this check at comp, because we don't want to have to manually set starting positions when testing
+            getEstimatedPose().getTranslation().getDistance(mt2Result.pose.getTranslation()) > Vision.maxPoseJump_Meters){ 
+                System.out.println("Rejected vision pose due to jump"); //this should rarely ever print unless something is really wrong with the vision system
+                return; 
+            }
+
             if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(mt2Result.pose); //visualize our last valid LL pose estimate on dashboard
 
             double xyStdDev = (Vision.baseXYStdDev/mt2Result.tagCount)
