@@ -199,7 +199,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      */
     public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
         System.out.println("Running SysID");
-        return m_sysIdRoutineToApply.quasistatic(direction);
+        return m_sysIdRoutineToApply.quasistatic(direction)
+            .beforeStarting(SignalLogger::start) // Start logging before test
+            .finallyDo((interrupted) -> SignalLogger.stop()); // Stop logging after test
     }
 
     /**
@@ -209,7 +211,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @return Command to run
      */
     public Command sysIdDynamic(SysIdRoutine.Direction direction) {
-        return m_sysIdRoutineToApply.dynamic(direction);
+        return m_sysIdRoutineToApply.dynamic(direction)
+        .beforeStarting(SignalLogger::start) // Start logging before test
+        .finallyDo((interrupted) -> SignalLogger.stop()); // Stop logging after test
     }
 
     @Override

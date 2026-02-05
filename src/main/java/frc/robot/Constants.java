@@ -36,6 +36,18 @@ public final class Constants {
     }
 
     public static final class Vision {
+        public static final String camName = "limelight";
+
+        //offset of camera from robot center; used for changing pose estimate of where camera is to robot center
+        //proper measurement is very important, especially angle
+        public static final double camX = 0.0;     //forward is +X
+        public static final double camY = 0.0;     //right is +Y
+        public static final double camZ = 0.0;     //up is +Z
+        public static final double camRoll = 0.0;  //right wing down is +roll
+        public static final double camPitch = 0.0; //nose up is +pitch
+        public static final double camYaw = 0.0;   //nose right is +yaw
+
+
         //std dev measurements in meters
         public static final double baseXYStdDev = 0.06;
         //divide by number of tags visible

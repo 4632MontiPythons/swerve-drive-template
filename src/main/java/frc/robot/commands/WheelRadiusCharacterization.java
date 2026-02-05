@@ -4,7 +4,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.Constants.Drive;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-import java.util.function.DoubleSupplier;
 
 public class WheelRadiusCharacterization extends Command {
     private final CommandSwerveDrivetrain drivetrain;
