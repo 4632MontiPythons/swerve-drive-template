@@ -4,7 +4,9 @@
 
 package frc.robot;
 
-
+import frc.robot.Constants.Drive;
+import frc.robot.Constants.Vision;
+import frc.robot.util.LimelightHelpers;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -21,10 +23,23 @@ public class Robot extends TimedRobot {
   }
 
   @Override
+  public void robotInit() {
+    // Initialize Limelight camera pose once on robot boot to ensure the camera has a known transform relative to the robot
+    LimelightHelpers.setCameraPose_RobotSpace(
+        Vision.camName,
+        Vision.camX,
+        Vision.camY,
+        Vision.camZ,
+        Vision.camRoll,
+        Vision.camPitch,
+        Vision.camYaw);
+  }
+
+  @Override
   public void robotPeriodic() {
     CommandScheduler.getInstance().run();
     double matchTime =  DriverStation.getMatchTime();
-    if(matchTime>0) SmartDashboard.putNumber("Match Time", matchTime); //will only do anything if in comp or practice mode
+    if(Drive.comp) SmartDashboard.putNumber("Match Time", matchTime);
   }
 
   @Override

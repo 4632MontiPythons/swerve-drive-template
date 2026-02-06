@@ -52,7 +52,7 @@ public class RobotContainer {
         public final CommandSwerveDrivetrain drivetrain = new CommandSwerveDrivetrain(
                         TunerConstants.DrivetrainConstants,
                         0, // odometry update frequency (0 = use default)
-                        VecBuilder.fill(Drive.odometryXYStdDevs, Drive.odometryXYStdDevs, Drive.odometryThetaStdDev),
+                        VecBuilder.fill(Drive.odometryXYStdDevs, Drive.odometryXYStdDevs, Drive.odometryYawStdDev),
                         VecBuilder.fill(999, 999, 999), //this is the *default* vision std dev. These values are never used because we always dynamically set it in updateVision()
                         TunerConstants.FrontLeft,
                         TunerConstants.FrontRight,
@@ -110,12 +110,12 @@ public class RobotContainer {
 
                         
                         //For testing purposes only: reset position to in front of the center of the red alliance hub, facing red alliance wall(By Apriltags 9 and 10)
-                        if(!Drive.comp) xboxController.leftTrigger().onTrue(
+                        xboxController.leftTrigger().onTrue(
                                         new InstantCommand(() -> drivetrain.resetPose(
                                                         new Pose2d((492.88 + 15) * 0.0254, (158.32) * 0.0254, //0.0254 converts from in to m
                                                                         Rotation2d.fromDegrees(180)))));      
                         //run wheel characterization
-                        if(!Drive.comp) xboxController.leftTrigger().and(xboxController.rightTrigger())
+                        xboxController.leftTrigger().and(xboxController.rightTrigger())
                                         .onTrue(new WheelRadiusCharacterization(drivetrain));
                 }
 

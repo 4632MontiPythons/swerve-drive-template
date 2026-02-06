@@ -30,7 +30,7 @@ public class Telemetry {
      */
     public Telemetry(double maxSpeed) {
         MaxSpeed = maxSpeed;
-        SignalLogger.start();
+        // SignalLogger.start();
 
         /* Set up the module state Mechanism2d telemetry */
         for (int i = 0; i < 4; ++i) {
@@ -114,8 +114,9 @@ public class Telemetry {
         SignalLogger.writeDouble("DriveState/OdometryPeriod", state.OdometryPeriod, "seconds");
 
         /* Telemeterize the pose to a Field2d */
-        fieldTypePub.set("Field2d");
-        fieldPub.set(m_poseArray);
+        // fieldTypePub.set("Field2d");
+        // fieldPub.set(m_poseArray);
+        //Removed because already being done in CommandSwerveDrivetrain
 
         /* Telemeterize each module state to a Mechanism2d */
         for (int i = 0; i < 4; ++i) {

@@ -14,10 +14,10 @@ public final class Constants {
     public static final class Drive {
         //Most Drive constants are located in /generated/TunerConstants.java
         public static final double odometryXYStdDevs = 0.03;
-        public static final double odometryThetaStdDev = Units.degreesToRadians(0.75);
+        public static final double odometryYawStdDev = Units.degreesToRadians(0.75);
         public static final double wheelXtocenter = Units.inchesToMeters(11.125);
         public static final double wheelYtocenter = Units.inchesToMeters(11.125);
-        public static final boolean comp = false;
+        public static final boolean comp = false; //CHANGE THIS AT COMP
 
 
         //Auto config
@@ -36,6 +36,18 @@ public final class Constants {
     }
 
     public static final class Vision {
+        public static final String camName = "limelight";
+
+        //offset of camera from robot center; used for changing pose estimate of where camera is to robot center
+        //proper measurement is very important, especially angle
+        public static final double camX = 0.0;     //forward is +X
+        public static final double camY = 0.0;     //right is +Y
+        public static final double camZ = 0.0;     //up is +Z
+        public static final double camRoll = 0.0;  //right wing down is +roll
+        public static final double camPitch = 0.0; //nose up is +pitch
+        public static final double camYaw = 0.0;   //nose right is +yaw
+
+
         //std dev measurements in meters
         public static final double baseXYStdDev = 0.06;
         //divide by number of tags visible
@@ -43,8 +55,9 @@ public final class Constants {
         //add avg tag distance * stdDevPerMeter
         public static final double maxTagDistance_Meters = 5.0; //ignore visual measurements when average distance to tags greater than this value.
         public static final double maxYawRate_DegPerSec = 450; //ignore visual measurements when yaw rate is greater than this value
-        public static final double yawRateCoefficent = (1/200);
+        public static final double yawRateCoefficent = (1.0/200.0);
         public static final double stdDevPerMeter = 0.02; //Std dev increase per meter
+        public static final double maxPoseJump_Meters = 1.0; //ignore visual measurements when distance from current pose to vision pose is greater than this value
     }
 
     public static final class OI {
