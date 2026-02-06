@@ -113,7 +113,7 @@ public class RobotContainer {
                         if(!Drive.comp) xboxController.leftTrigger().onTrue(
                                         new InstantCommand(() -> drivetrain.resetPose(
                                                         new Pose2d((492.88 + 15) * 0.0254, (158.32) * 0.0254, //0.0254 converts from in to m
-                                                                        Rotation2d.fromDegrees(0)))));      
+                                                                        Rotation2d.fromDegrees(180)))));      
                         //run wheel characterization
                         if(!Drive.comp) xboxController.leftTrigger().and(xboxController.rightTrigger())
                                         .onTrue(new WheelRadiusCharacterization(drivetrain));
