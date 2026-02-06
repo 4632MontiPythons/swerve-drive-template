@@ -1,44 +1,66 @@
 package frc.robot.commands;
 
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
-import frc.robot.Constants.Drive;
+import frc.robot.generated.TunerConstants;
+
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import static edu.wpi.first.units.Units.Inches;
+
+import java.util.function.DoubleSupplier;
 
 public class WheelRadiusCharacterization extends Command {
     private final CommandSwerveDrivetrain drivetrain;
+    
+    // Configurable rotation speed (rad/s). 
+    // Slower = more accurate data, but takes longer. 1.0 is a good balance.
+    private static final double ROTATION_SPEED = 1.0; 
+    
     private final SwerveRequest.RobotCentric spinRequest = new SwerveRequest.RobotCentric()
             .withVelocityX(0)
             .withVelocityY(0)
-            .withRotationalRate(1.0); // Increased slightly for efficiency, adjust as needed
+            .withRotationalRate(ROTATION_SPEED); 
 
-    private double lastYaw;
-    private double accumulatedYaw = 0;
-    private final double[] lastWheelPos = new double[4];
-    private double accumulatedWheelRot = 0;
+    private double lastYawRadians;
+    private double accumulatedYawRadians = 0;
+    
+    private final double[] lastWheelDistancesMeters = new double[4];
+    private double accumulatedWheelDistanceMeters = 0;
 
-    // Calculate drivebase radius (hypotenuse from center to module)
-    private final double driveBaseRadius = Math.hypot(Drive.wheelXtocenter, Drive.wheelYtocenter);
+    // The radius from the center of the robot to the center of the modules
+    private final double driveBaseRadiusMeters;
 
     public WheelRadiusCharacterization(CommandSwerveDrivetrain drivetrain) {
         this.drivetrain = drivetrain;
         addRequirements(drivetrain);
+
+        // 1. Get the drive base radius directly from TunerConstants.
+        // We use FrontLeft, assuming the robot is symmetrical or rectangular.
+        // Phoenix 6 constants (LocationX/Y) are always in Meters.
+        this.driveBaseRadiusMeters = Math.hypot(
+            TunerConstants.FrontLeft.LocationX, 
+            TunerConstants.FrontLeft.LocationY
+        );
     }
 
     @Override
     public void initialize() {
-        accumulatedYaw = 0;
-        accumulatedWheelRot = 0;
+        accumulatedYawRadians = 0;
+        accumulatedWheelDistanceMeters = 0;
 
-        // Get initial gyro state (in radians)
-        lastYaw = drivetrain.getState().Pose.getRotation().getRadians();
+        // Get initial gyro state
+        lastYawRadians = drivetrain.getState().Pose.getRotation().getRadians();
 
-        // Get initial wheel positions (in Rotations)
+        // Get initial wheel distances
+        var modulePositions = drivetrain.getState().ModulePositions;
         for (int i = 0; i < 4; i++) {
-            lastWheelPos[i] = drivetrain.getModule(i).getDriveMotor().getPosition().getValueAsDouble();
+            lastWheelDistancesMeters[i] = modulePositions[i].distanceMeters;
         }
 
         System.out.println("=== Wheel Radius Characterization START ===");
+        System.out.printf("Drive Base Radius: %.4f meters%n", driveBaseRadiusMeters);
+        System.out.println("Starting rotation... please wait for 10 rotations.");
     }
 
     @Override
@@ -46,52 +68,69 @@ public class WheelRadiusCharacterization extends Command {
         drivetrain.setControl(spinRequest);
 
         // ---- Robot Rotation (Gyro) ----
-        double currentYaw = drivetrain.getState().Pose.getRotation().getRadians();
-        double deltaYaw = currentYaw - lastYaw;
+        double currentYawRadians = drivetrain.getState().Pose.getRotation().getRadians();
+        double deltaYaw = currentYawRadians - lastYawRadians;
 
         // Handle Gyro wrapping (-PI to PI)
         if (deltaYaw > Math.PI) deltaYaw -= 2 * Math.PI;
         if (deltaYaw < -Math.PI) deltaYaw += 2 * Math.PI;
 
-        accumulatedYaw += Math.abs(deltaYaw);
-        lastYaw = currentYaw;
+        accumulatedYawRadians += Math.abs(deltaYaw);
+        lastYawRadians = currentYawRadians;
 
-        // ---- Wheel Rotation (Encoders) ----
+        // ---- Wheel Distance (Odometry) ----
         double wheelDeltaSum = 0;
+        var modulePositions = drivetrain.getState().ModulePositions;
         for (int i = 0; i < 4; i++) {
-            double pos = drivetrain.getModule(i).getDriveMotor().getPosition().getValueAsDouble();
-            double delta = pos - lastWheelPos[i];
-            lastWheelPos[i] = pos;
-            wheelDeltaSum += Math.abs(delta);
+            double currentDist = modulePositions[i].distanceMeters;
+            wheelDeltaSum += Math.abs(currentDist - lastWheelDistancesMeters[i]);
+            lastWheelDistancesMeters[i] = currentDist;
         }
         
-        // Average the 4 modules
-        accumulatedWheelRot += wheelDeltaSum / 4.0;
+        // Average the distance of all 4 modules
+        accumulatedWheelDistanceMeters += wheelDeltaSum / 4.0;
     }
+
     @Override
     public boolean isFinished() {
-        //ends the command once the robot has spun 10 full circles
-        return accumulatedYaw >= (2 * Math.PI * 10);
+        // Stop after 10 full rotations (20 * PI) to ensure a large sample size
+        return accumulatedYawRadians >= (2 * Math.PI * 10);
     }
 
     @Override
     public void end(boolean interrupted) {
-        // Stop the robot
         drivetrain.setControl(new SwerveRequest.ApplyRobotSpeeds());
 
-        if (accumulatedWheelRot > 0) {
-            // Formula: Radius = (RobotArcLength) / (WheelRadians)
-            // RobotArcLength = RobotRadians * DriveBaseRadius
-            // WheelRadians = WheelRotations * 2PI
-            double wheelRadiusMeters = (accumulatedYaw * driveBaseRadius) / (accumulatedWheelRot * 2 * Math.PI);
-            double wheelRadiusInches = wheelRadiusMeters * 39.3701;
-
-            System.out.println("=== Characterization DONE ===");
-            System.out.printf("Total Robot Rotation: %.2f rads%n", accumulatedYaw);
-            System.out.printf("Avg Wheel Rotation:   %.2f rots%n", accumulatedWheelRot);
-            System.out.printf("Wheel Radius Estimate: %.5f inches (%.5f m)%n", wheelRadiusInches, wheelRadiusMeters);
-        } else {
-            System.out.println("=== Characterization FAILED: No movement detected ===");
+        if (interrupted || accumulatedWheelDistanceMeters <= 0.1) {
+             System.out.println("=== Characterization INTERRUPTED or FAILED ===");
+             return;
         }
+
+        // 1. Calculate the actual distance the wheels *should* have traveled 
+        //    based on how much the robot actually rotated.
+        //    Arc Length = Angle (radians) * Radius
+        double actualDistanceMeters = accumulatedYawRadians * driveBaseRadiusMeters;
+
+        // 2. Calculate the adjustment factor
+        //    Factor = Actual / Measured
+        double adjustmentFactor = actualDistanceMeters / accumulatedWheelDistanceMeters;
+        
+        // 3. Apply to current radius
+        //    We read the current radius directly from TunerConstants
+        double currentRadiusInches = TunerConstants.kWheelRadius.in(Inches); 
+        double newWheelRadiusInches = currentRadiusInches * adjustmentFactor;
+
+        System.out.println("\n========== CHARACTERIZATION RESULTS ==========");
+        System.out.printf("Rotations:      %.2f%n", accumulatedYawRadians / (2*Math.PI));
+        System.out.printf("Wheel Dist:     %.3f m%n", accumulatedWheelDistanceMeters);
+        System.out.printf("Gyro Dist:      %.3f m%n", actualDistanceMeters);
+        System.out.println("----------------------------------------------");
+        System.out.printf("Adjustment:     %.5f%n", adjustmentFactor);
+        System.out.printf("Old Radius:     %.5f inches%n", currentRadiusInches);
+        System.out.printf("NEW RADIUS:     %.5f inches%n", newWheelRadiusInches);
+        System.out.println("----------------------------------------------");
+        System.out.println("Copy/Paste this line into TunerConstants.java:");
+        System.out.printf("public static final Distance kWheelRadius = Inches.of(%.5f);%n", newWheelRadiusInches);
+        System.out.println("==============================================\n");
     }
 }

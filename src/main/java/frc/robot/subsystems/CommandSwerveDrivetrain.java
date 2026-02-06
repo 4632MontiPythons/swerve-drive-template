@@ -253,7 +253,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         m_field.getObject("targetPose").setPoses();
     }
 
-    @SuppressWarnings("unused")
     private void updateVision() {
         //First we are sending our robot's orientation(from pigeon) to the limelight so that it can effectively calculate position
         var pigeon = getPigeon2();
@@ -266,26 +265,40 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
          pigeon.getRoll().getValueAsDouble(), 
          0);
 
-        var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
+        //first we'll check MegaTag1 results for just yaw estimation; we are very very picky about this data because pigeon is generally very accurate for yaw
+        //this is mainly just for this year, because of the bump; consider removing this code for future seasons
+        var mt1Result = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight"); //grab LL estimate
+        boolean useMT1Yaw = false;
+        boolean useMT2Pose = false;
+        useMT1Yaw = (mt1Result != null
+                && mt1Result.tagCount >= Vision.megaTag1MinTagsForYaw
+                && mt1Result.avgTagDist < Vision.megaTag1MaxDistance
+                && Math.abs(yawRate) < Vision.megaTag1maxYawRate_DegPerSec);
 
+         
+
+        var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
+        double xyStdDev = 67; //never actually used with this value, but compiler wants us to initiliaze it
         if (mt2Result != null
                 && Math.abs(yawRate) < Vision.maxYawRate_DegPerSec
                 && mt2Result.avgTagDist < Vision.maxTagDistance_Meters) {
 
-            if(Drive.comp && //only do this check at comp, because we don't want to have to manually set starting positions when testing
-            getEstimatedPose().getTranslation().getDistance(mt2Result.pose.getTranslation()) > Vision.maxPoseJump_Meters){ 
-                System.out.println("Rejected vision pose due to jump"); //this should rarely ever print unless something is really wrong with the vision system
-                return; 
-            }
-
-            if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(mt2Result.pose); //visualize our last valid LL pose estimate on dashboard
-
-            double xyStdDev = (Vision.baseXYStdDev/mt2Result.tagCount)
-                            * (1+(yawRate*Vision.yawRateCoefficent))
+            useMT2Pose=true;
+            xyStdDev = (Vision.baseXYStdDev/mt2Result.tagCount)
+                            * (1+(Math.abs(yawRate) * Vision.yawRateCoefficent))
                             + (mt2Result.avgTagDist*Vision.stdDevPerMeter);
-            var visionTrustMatrix = VecBuilder.fill(
-                xyStdDev, xyStdDev, 99999);
-            addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, visionTrustMatrix); //send vision measurement to pose estimator
+        }
+
+        //final pose: megatag2 combined with megatag1(if valid)
+        if(useMT1Yaw && useMT2Pose){
+            System.out.println("Just for testing, REMOVE LATER; Yaw of MT1: " + mt1Result.pose.getRotation().getDegrees()+"Yaw before:" + getEstimatedPose().getRotation());
+            Pose2d finalPose = new Pose2d(mt2Result.pose.getTranslation(), mt1Result.pose.getRotation());
+            if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(finalPose); //visualize our last valid LL pose estimate on dashboard
+            addVisionMeasurement(finalPose, mt2Result.timestampSeconds, VecBuilder.fill(xyStdDev, xyStdDev, Vision.megaTag1YawStdDev));
+        }
+        else if(useMT2Pose){
+            if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(mt2Result.pose); //visualize our last valid LL pose estimate on dashboard
+            addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, VecBuilder.fill(xyStdDev, xyStdDev, 9999999));
         }
     }
 
