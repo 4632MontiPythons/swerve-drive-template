@@ -37,6 +37,7 @@ public class RobotContainer {
         //initilaize slew rate limiters
         private final SlewRateLimiter m_xspeedLimiter = new SlewRateLimiter(OI.slewRate);
         private final SlewRateLimiter m_yspeedLimiter = new SlewRateLimiter(OI.slewRate);
+        private final SlewRateLimiter m_rotLimiter = new SlewRateLimiter(OI.rotationSlewRate);
 
         /* Setting up bindings for necessary control of the swerve drive platform */
         private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
@@ -75,7 +76,8 @@ public class RobotContainer {
                                                                 * MaxSpeed)
                                                 .withVelocityY(m_yspeedLimiter.calculate(-xboxController.getLeftX())
                                                                 * MaxSpeed)
-                                                .withRotationalRate(-xboxController.getRightX() * MaxAngularRate)));
+                                                .withRotationalRate(m_rotLimiter.calculate(-xboxController.getRightX() 
+                                                                * MaxAngularRate))));
 
                 // Idle while the robot is disabled. This ensures the configured
                 // neutral mode is applied to the drive motors while disabled.
