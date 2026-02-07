@@ -276,7 +276,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 && Math.abs(yawRate) < Vision.megaTag1maxYawRate_DegPerSec);
 
          
-
+        //check megatag2 results
         var mt2Result = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight"); //grab LL estimate
         double xyStdDev = 67; //never actually used with this value, but compiler wants us to initiliaze it
         if (mt2Result != null
@@ -291,7 +291,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
         //final pose: megatag2 combined with megatag1(if valid)
         if(useMT1Yaw && useMT2Pose){
-            System.out.println("Just for testing, REMOVE LATER; Yaw of MT1: " + mt1Result.pose.getRotation().getDegrees()+"Yaw before:" + getEstimatedPose().getRotation());
+            System.out.println("Just for testing, REMOVE LATER; Valid MT1 Yaw: " + mt1Result.pose.getRotation().getDegrees()+"Yaw before:" + getEstimatedPose().getRotation());
             Pose2d finalPose = new Pose2d(mt2Result.pose.getTranslation(), mt1Result.pose.getRotation());
             if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(finalPose); //visualize our last valid LL pose estimate on dashboard
             addVisionMeasurement(finalPose, mt2Result.timestampSeconds, VecBuilder.fill(xyStdDev, xyStdDev, Vision.megaTag1YawStdDev));
@@ -299,6 +299,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         else if(useMT2Pose){
             if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(mt2Result.pose); //visualize our last valid LL pose estimate on dashboard
             addVisionMeasurement(mt2Result.pose, mt2Result.timestampSeconds, VecBuilder.fill(xyStdDev, xyStdDev, 9999999));
+        } else if (useMT1Yaw && !useMT2Pose) { 
+            //extreme edge case, only way i see mt1 being valid but not mt2 is if we are sending wrong yaw to mt2 so it returns null; but that is the exact scenario we need mt1 for
+            System.out.println("Just for testing, REMOVE LATER; Valid MT1 Yaw: " + mt1Result.pose.getRotation().getDegrees()+"Yaw before:" + getEstimatedPose().getRotation());
+            Pose2d finalPose = new Pose2d(getEstimatedPose().getTranslation(), mt1Result.pose.getRotation());
+            if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(finalPose); //visualize our last valid LL pose estimate on dashboard
+            addVisionMeasurement(finalPose, mt1Result.timestampSeconds, VecBuilder.fill(9999999, 9999999, Vision.megaTag1YawStdDev));
         }
     }
 
