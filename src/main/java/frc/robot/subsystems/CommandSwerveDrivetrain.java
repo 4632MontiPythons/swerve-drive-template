@@ -302,7 +302,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         } else if (useMT1Yaw && !useMT2Pose) { 
             //extreme edge case, only way i see mt1 being valid but not mt2 is if we are sending wrong yaw to mt2 so it returns null; but that is the exact scenario we need mt1 for
             System.out.println("Just for testing, REMOVE LATER; Valid MT1 Yaw: " + mt1Result.pose.getRotation().getDegrees()+"Yaw before:" + getEstimatedPose().getRotation());
-            Pose2d finalPose = new Pose2d(getEstimatedPose().getTranslation(), mt1Result.pose.getRotation());
+            Pose2d finalPose = new Pose2d(0, 0, mt1Result.pose.getRotation());
             if(!Drive.comp) m_field.getObject("VisionEstimate").setPose(finalPose); //visualize our last valid LL pose estimate on dashboard
             addVisionMeasurement(finalPose, mt1Result.timestampSeconds, VecBuilder.fill(9999999, 9999999, Vision.megaTag1YawStdDev));
         }

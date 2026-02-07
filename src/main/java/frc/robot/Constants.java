@@ -51,7 +51,7 @@ public final class Constants {
         //std dev measurements in meters
         public static final double baseXYStdDev = 0.06;
         //divide by number of tags visible
-        //multiply by 1+(yawDegPerSec*yawRateCoefficent)
+        //multiply by 1+(|yawDegPerSec|*yawRateCoefficent)
         //add avg tag distance * stdDevPerMeter
         public static final double maxTagDistance_Meters = 4.0; //ignore visual measurements when average distance to tags greater than this value.
         public static final double maxYawRate_DegPerSec = 450; //ignore visual measurements when yaw rate is greater than this value
